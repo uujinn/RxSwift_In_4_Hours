@@ -11,6 +11,18 @@ import SwiftyJSON
 import UIKit
 
 let MEMBER_LIST_URL = "https://my.api.mockaroo.com/members_with_avatar.json?key=44ce18f0"
+//
+//class Observable<T>{
+//  private let task: (@escaping (T) -> Void) -> Void
+//
+//  init(task: @escaping (@escaping (T) -> Void ) -> Void){
+//    self.task = task
+//  }
+//
+//  func subscribe(_ f: @escaping (T) -> Void){
+//    task(f)
+//  }
+//}
 
 class ViewController: UIViewController {
   @IBOutlet var timerLabel: UILabel!
@@ -32,17 +44,30 @@ class ViewController: UIViewController {
     })
   }
   
-  func downloadJson(_ url: String, _ completion: @escaping (String?) -> Void) { // 나중에 실행되는 함수 -> @escaping
-    DispatchQueue.global().async {
-      let url = URL(string: url)!
-      let data = try! Data(contentsOf: url)
-      let json = String(data: data, encoding: .utf8)
-      
-      DispatchQueue.main.async {
-        completion(json)
-      }
-    }
+  // PromiseKit
+  // Bolt
+  // RxSwift
+  
+  // 비동기로 생기는 데이터를 어떻게 return 값으로 만들지?
+  func downloadJson(_ url: String) -> Observable<String?> { // 나중에 실행되는 함수 -> @escaping
+    // 1. 비동기로 생기는 데이터를 Observable로 감싸서 리턴하는 방법
+    return Observable.create() { f in
+      DispatchQueue.global().async {
+        let url = URL(string: url)!
+        let data = try! Data(contentsOf: url)
+        let json = String(data: data, encoding: .utf8)
+        
+        DispatchQueue.main.async {
+          f.onNext(json)
+          f.onCompleted()
+        }
     
+      }
+      
+      return Disposables.create()
+      
+    }
+
   }
   
   // MARK: SYNC
@@ -53,11 +78,20 @@ class ViewController: UIViewController {
     editView.text = ""
     setVisibleWithAnimation(activityIndicator, true)
     
-    downloadJson(MEMBER_LIST_URL) { json in
-      self.editView.text = json
-      self.setVisibleWithAnimation(self.activityIndicator, false)
+    
+    // 2. Observable로 오는 데이터를 받아서 처리하는 방법
+    let disposable = downloadJson(MEMBER_LIST_URL)
+    .subscribe { event in
+        switch event{
+        case let .next(json): // RxSwift 비동기로 생기는 결과값을 completion Closure으로 전달하지 않고, return 값으로 전달하기 위해 사용하는 utility
+          self.editView.text = json
+          self.setVisibleWithAnimation(self.activityIndicator, false)
+        case .completed:
+          break
+        case .error:
+          break
+        }
     }
-    
-    
+
   }
 }
