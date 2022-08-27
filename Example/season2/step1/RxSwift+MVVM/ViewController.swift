@@ -48,26 +48,68 @@ class ViewController: UIViewController {
   // Bolt
   // RxSwift
   
+  // Observable의 생명주기
+  // 1. Create
+  // 2. Subscribe
+  // 3. onNext
+  // ---- 끝 ----
+  // 4. onCompleted / onError
+  // 5. Disposed
+  
   // 비동기로 생기는 데이터를 어떻게 return 값으로 만들지?
   func downloadJson(_ url: String) -> Observable<String?> { // 나중에 실행되는 함수 -> @escaping
     // 1. 비동기로 생기는 데이터를 Observable로 감싸서 리턴하는 방법
-    return Observable.create() { f in
-      DispatchQueue.global().async {
-        let url = URL(string: url)!
-        let data = try! Data(contentsOf: url)
-        let json = String(data: data, encoding: .utf8)
-        
-        DispatchQueue.main.async {
-          f.onNext(json)
-          f.onCompleted()
-        }
+    //        return Observable.just("Hello World")
+    //    return Observable.from(["Hello", "World"]) // Sugar API
     
+    //    return Observable.create { emitter in
+    //      emitter.onNext("Hello Word")
+    //      emitter.onCompleted()
+    //
+    //      return Disposables.create()
+    //
+    //    }
+    
+    
+    return Observable.create(){ emitter in
+      let url = URL(string: url)!
+      let task = URLSession.shared.dataTask(with: url) { (data, _, err) in
+        guard err == nil else {
+          emitter.onError(err!)
+          return
+        }
+        
+        if let dat = data, let json = String(data: dat, encoding: .utf8){
+          emitter.onNext(json)
+        }
+        
+        emitter.onCompleted()
       }
       
-      return Disposables.create()
+      task.resume()
       
+      return Disposables.create() {
+        task.cancel()
+      }
     }
-
+    
+    //    return Observable.create() { f in
+    //      DispatchQueue.global().async {
+    //        let url = URL(string: url)!
+    //        let data = try! Data(contentsOf: url)
+    //        let json = String(data: data, encoding: .utf8)
+    //
+    //        DispatchQueue.main.async {
+    //          f.onNext(json)
+    //          f.onCompleted()
+    //        }
+    //
+    //      }
+    //
+    //      return Disposables.create()
+    //
+    //    }
+    
   }
   
   // MARK: SYNC
@@ -80,18 +122,50 @@ class ViewController: UIViewController {
     
     
     // 2. Observable로 오는 데이터를 받아서 처리하는 방법
-    let disposable = downloadJson(MEMBER_LIST_URL)
-    .subscribe { event in
-        switch event{
-        case let .next(json): // RxSwift 비동기로 생기는 결과값을 completion Closure으로 전달하지 않고, return 값으로 전달하기 위해 사용하는 utility
-          self.editView.text = json
-          self.setVisibleWithAnimation(self.activityIndicator, false)
-        case .completed:
-          break
-        case .error:
-          break
-        }
-    }
-
+    
+    _ = downloadJson(MEMBER_LIST_URL)
+      .map { json in json?.count ?? 0 } // operator
+      .filter { cnt in cnt > 0 } // operator
+      .map { "\($0)" } // operator
+      .observeOn(MainScheduler.instance) // sugar api: operator
+      .subscribe(onNext: { json in
+        self.editView.text = json
+        self.setVisibleWithAnimation(self.activityIndicator, false)
+      }, onCompleted: { print("Completed") })
+    
+    //    let observable = downloadJson(MEMBER_LIST_URL)
+    //    let disposable = observable.subscribe{ event in
+    //      switch event{
+    //      case .next(let json):
+    //        print(json)
+    //        break
+    //      case .completed:
+    //        break
+    //      case .error(let err):
+    //        break
+    //      }
+    //    }
+    
+    //    disposable.dispose()
+    
+    
+    
+    //    let ob = downloadJson(MEMBER_LIST_URL)
+    //    let disp = ob
+    //      .debug()
+    //      .subscribe { event in // Subscribe 해야 실행됨
+    //          switch event{
+    //          case let .next(json): // RxSwift 비동기로 생기는 결과값을 completion Closure으로 전달하지 않고, return 값으로 전달하기 위해 사용하는 utility
+    //            DispatchQueue.main.async {
+    //              self.editView.text = json
+    //              self.setVisibleWithAnimation(self.activityIndicator, false)
+    //            }
+    //          case .completed:
+    //            break
+    //          case .error:
+    //            break
+    //          }
+    //      }
+    
   }
 }
