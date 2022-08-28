@@ -123,7 +123,8 @@ class ViewController: UIViewController {
     
     // 2. Observable로 오는 데이터를 받아서 처리하는 방법
     
-    _ = downloadJson(MEMBER_LIST_URL)
+    _ = downloadJson(MEMBER_LIST_URL) // just, from
+      .subscribeOn(ConcurrentDispatchQueueScheduler(qos: .default))
       .map { json in json?.count ?? 0 } // operator
       .filter { cnt in cnt > 0 } // operator
       .map { "\($0)" } // operator
