@@ -57,7 +57,7 @@ class ViewController: UIViewController {
   // 5. Disposed
   
   // 비동기로 생기는 데이터를 어떻게 return 값으로 만들지?
-  func downloadJson(_ url: String) -> Observable<String?> { // 나중에 실행되는 함수 -> @escaping
+  func downloadJson(_ url: String) -> Observable<String> { // 나중에 실행되는 함수 -> @escaping
     // 1. 비동기로 생기는 데이터를 Observable로 감싸서 리턴하는 방법
     //        return Observable.just("Hello World")
     //    return Observable.from(["Hello", "World"]) // Sugar API
@@ -123,11 +123,10 @@ class ViewController: UIViewController {
     
     // 2. Observable로 오는 데이터를 받아서 처리하는 방법
     
-    _ = downloadJson(MEMBER_LIST_URL) // just, from
-      .subscribeOn(ConcurrentDispatchQueueScheduler(qos: .default))
-      .map { json in json?.count ?? 0 } // operator
-      .filter { cnt in cnt > 0 } // operator
-      .map { "\($0)" } // operator
+    let jsonObservable = downloadJson(MEMBER_LIST_URL) // just, from
+    let helloObservable = Observable.just("Hello World")
+    
+    _ = Observable.zip(jsonObservable, helloObservable) { $1 + "\n"  + $0 }
       .observeOn(MainScheduler.instance) // sugar api: operator
       .subscribe(onNext: { json in
         self.editView.text = json
